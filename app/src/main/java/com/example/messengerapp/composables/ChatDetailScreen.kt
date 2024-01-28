@@ -103,14 +103,16 @@ fun ChatDetailScreen(navController: NavHostController,chat: Chat, firebaseManage
         firebaseManager.retrieveUserData(chat.otherUserId){
             otherUser = it
         }
-//        firebaseManager.retrieveMessages(chat.chatId) { retrievedMessages ->
-//            messages = retrievedMessages
-//        }
+        firebaseManager.retrieveMessages(chat.chatId) { retrievedMessages ->
+            messages = retrievedMessages
+        }
     }
     Log.d("check", "ChatDetailScreen: ${chat.chatId}")
-    // Compose UI for displaying messages
+
     if(otherUser.userId!=""){
+
         Scaffold(
+
             topBar = {
                 ChatTopBar(otherUser, navController)
             },

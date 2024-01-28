@@ -2,6 +2,7 @@ package com.example.messengerapp
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -47,6 +48,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
@@ -80,9 +83,23 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         auth = Firebase.auth
         val loginViewModel = LoginViewModel()
+        if(!hasRequiredPermissions()){
+            ActivityCompat.requestPermissions(this, CAMERAX_PERMISSIONS, 0)
+        }
         setContent {
             Navigation(auth, loginViewModel, chatViewModel)
         }
+    }
+    private fun hasRequiredPermissions(): Boolean {
+        return CAMERAX_PERMISSIONS.all {
+            ContextCompat.checkSelfPermission(applicationContext, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+    companion object{
+        private val CAMERAX_PERMISSIONS = arrayOf(
+            android.Manifest.permission.CAMERA,
+            android.Manifest.permission.RECORD_AUDIO
+        )
     }
 }
 
