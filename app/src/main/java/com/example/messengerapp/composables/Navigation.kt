@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
@@ -26,16 +25,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -44,18 +38,16 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.messengerapp.FirebaseManager
-import com.example.messengerapp.viewModel.LoginViewModel
 import com.example.messengerapp.data.Chat
 import com.example.messengerapp.data.Screen
 import com.example.messengerapp.ui.theme.MessengerAppTheme
-import com.example.messengerapp.viewModel.ChatViewModel
+import com.example.messengerapp.viewModel.LoginViewModel
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.runBlocking
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel: ChatViewModel){
+fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel){
     MessengerAppTheme {
         val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -77,28 +69,9 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                 bottomState.value=Pair(false, 0)
             }
         }
-        var isUserSet by remember{ mutableStateOf(false) }
         val firebaseManager = FirebaseManager()
         val currentUser = auth.currentUser
-        LaunchedEffect(Unit){
-            if (currentUser != null) {
-                firebaseManager.retrieveLinkToProfileId(currentUser){
-                    firebaseManager.retrieveUserData(it) {it1 ->
-                        loginViewModel.setCurrentUser(it1)
-                        isUserSet=true
-                        Log.d("check", "is it here ${loginViewModel.currentUser.value}")
-                    }
-                }
-            }
-        }
 
-        if(!isUserSet && currentUser != null){
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            )
-        } else{
         Scaffold(
             bottomBar = {
                 if(bottomState.component1().first){
@@ -136,18 +109,15 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                         navController = navController,
                         startDestination = if(currentUser == null) Screen.LogIn.route else if(loginViewModel.currentUser.value == null) Screen.LoadingScreen.route else Screen.Chats.route,
                    ) {
-
                         composable(
                             Screen.Chats.route,
                             enterTransition = { fadeIn(animationSpec = tween(700)) },
                             exitTransition = { fadeOut(animationSpec = tween(700)) }
                         ) {
-                            Log.d("check", "Launching Chats Screen: ${loginViewModel.currentUser.value}")
                             ChatsScreen(
                                 navController = navController,
                                 firebaseManager = firebaseManager,
-                                loginViewModel = loginViewModel,
-                                chatViewModel = chatViewModel
+                                loginViewModel = loginViewModel
                             )
                         }
                         composable(
@@ -155,7 +125,6 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                             enterTransition = { fadeIn(animationSpec = tween(700)) },
                             exitTransition = { fadeOut(animationSpec = tween(700)) }
                         ) {
-                            Log.d("check", "Launching Calls Screen: ${loginViewModel.currentUser.value}")
                             CallsScreen(navController = navController)
                         }
                         composable(
@@ -163,7 +132,6 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                             enterTransition = { fadeIn(animationSpec = tween(700)) },
                             exitTransition = { fadeOut(animationSpec = tween(700)) }
                         ) {
-                            Log.d("check", "Launching Loading Screen: ${loginViewModel.currentUser.value}")
                             LoadingScreen()
                         }
                         composable(
@@ -171,7 +139,6 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                             enterTransition = { fadeIn(animationSpec = tween(700)) },
                             exitTransition = { fadeOut(animationSpec = tween(700)) }
                         ) {
-                            Log.d("check", "Launching Channels Screen: ${loginViewModel.currentUser.value}")
                             ChannelsScreen(navController = navController)
                         }
                         composable(
@@ -179,7 +146,6 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                             enterTransition = { fadeIn(animationSpec = tween(700)) },
                             exitTransition = { fadeOut(animationSpec = tween(700)) }
                         ) {
-                            Log.d("check", "Launching Profile Screen: ${loginViewModel.currentUser.value}")
                             ProfileScreen(navController = navController, loginViewModel)
                         }
                         composable(
@@ -187,7 +153,6 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                             enterTransition = { fadeIn(animationSpec = tween(700)) },
                             exitTransition = { fadeOut(animationSpec = tween(700)) }
                         ) {
-                            Log.d("check", "Launching Log in Screen: ${loginViewModel.currentUser.value}")
                             LoginScreen(firebaseManager, auth, navController, loginViewModel)
                         }
                         composable(
@@ -198,34 +163,33 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                             Log.d("check", "Launching Sign up Screen: ${loginViewModel.currentUser.value}")
                             SignUpScreen(auth, navController, loginViewModel, firebaseManager)
                         }
-                        composable(Screen.ChatWithDetails.route + "/{chatId}/{otherUserId}/{otherUserName}",
+                        composable(Screen.ChatWithDetails.route + "/{chatId}",
                             arguments = listOf(
                                 navArgument("chatId") {
-                                    type = NavType.StringType
-                                },
-                                navArgument("otherUserId") {
-                                    type = NavType.StringType
-                                },
-                                navArgument("otherUserName") {
                                     type = NavType.StringType
                                 }
                             )
                         ) { backStackEntry ->
-                            val otherUserId = backStackEntry.arguments?.getString("otherUserId")
+                            var otherUserId = ""
                             val chatId = backStackEntry.arguments?.getString("chatId")
+                            val parts = chatId!!.split("_")
+
+                            if (parts[0]==loginViewModel.currentUser.value!!.userId) {
+                                otherUserId = parts[1]
+                            } else if (parts[1]==loginViewModel.currentUser.value!!.userId) {
+                                otherUserId = parts[0]
+                            }
                             val chat = Chat(
-                                otherUserId = otherUserId!!,
-                                chatId = chatId!!,
+                                otherUserId = otherUserId,
+                                chatId = chatId,
                                 lastMessage = null,
                                 timestamp = null
                             )
                             Log.d("check", "Launching Chat Detail Screen: ${loginViewModel.currentUser.value}")
                             ChatDetailScreen(
-                                navController,
+                                navController = navController,
                                 chat = chat,
-                                firebaseManager = firebaseManager,
-                                loginViewModel,
-                                chatViewModel
+                                loginViewModel = loginViewModel
                             )
                         }
                         composable(
@@ -234,9 +198,7 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                             Log.d("check", "Launching Create Chats Screen: ${loginViewModel.currentUser.value}")
                             CreateChatScreen(
                                 navController = navController,
-                                firebaseManager = firebaseManager,
-                                loginViewModel = loginViewModel,
-                                chatViewModel = chatViewModel
+                                loginViewModel = loginViewModel
                             )
                         }
                         composable(Screen.VerificationScreen.route + "/{email}/{password}/{username}",
@@ -274,6 +236,6 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                     }
 
             }
-        )}
+        )
 }
 }

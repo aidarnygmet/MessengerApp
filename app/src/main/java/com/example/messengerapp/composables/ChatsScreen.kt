@@ -1,7 +1,5 @@
 package com.example.messengerapp.composables
 
-import android.app.Application
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,15 +44,14 @@ import com.example.messengerapp.R
 import com.example.messengerapp.data.Chat
 import com.example.messengerapp.data.Screen
 import com.example.messengerapp.data.User
-import com.example.messengerapp.viewModel.ChatViewModel
 import com.example.messengerapp.viewModel.LoginViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
-fun ChatsScreen(navController: NavHostController, firebaseManager: FirebaseManager, loginViewModel: LoginViewModel, chatViewModel: ChatViewModel) {
-    var chats by remember { mutableStateOf(chatViewModel.allChats) }
+fun ChatsScreen(navController: NavHostController, firebaseManager: FirebaseManager, loginViewModel: LoginViewModel) {
+    var chats by remember { mutableStateOf(emptyList<Chat>()) }
     LaunchedEffect(Unit) {
         loginViewModel.currentUser.value?.let {
             firebaseManager.retrieveChats(it) { retrievedChats ->
@@ -125,9 +122,7 @@ fun ChatItem(viewModel: LoginViewModel, navController: NavHostController, chat: 
 
                         navController.navigate(
                             Screen.ChatWithDetails.withArgs(
-                                chat.chatId,
-                                chat.otherUserId,
-                                otherUser.username
+                                chat.chatId
                             )
                         )
 

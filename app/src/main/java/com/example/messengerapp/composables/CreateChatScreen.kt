@@ -4,46 +4,30 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.messengerapp.FirebaseManager
-import com.example.messengerapp.R
-import com.example.messengerapp.data.Chat
-import com.example.messengerapp.data.ChatEntity
 import com.example.messengerapp.data.Screen
 import com.example.messengerapp.data.User
-import com.example.messengerapp.viewModel.ChatViewModel
 import com.example.messengerapp.viewModel.LoginViewModel
-import com.google.firebase.auth.FirebaseUser
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
-@OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateChatScreen(navController: NavController, firebaseManager: FirebaseManager, loginViewModel: LoginViewModel, chatViewModel: ChatViewModel) {
+fun CreateChatScreen(navController: NavController, loginViewModel: LoginViewModel) {
     var otherUserId by remember { mutableStateOf("") }
-    val keyboardController = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
     Scaffold(
         content = {
@@ -61,7 +45,7 @@ fun CreateChatScreen(navController: NavController, firebaseManager: FirebaseMana
                     ),
                     keyboardActions = KeyboardActions(
                         onDone = {
-                            createChatAndNavigate(navController, otherUserId, firebaseManager, loginViewModel.getCurrentUser(), context, chatViewModel)
+                            createChatAndNavigate(navController, otherUserId,loginViewModel.getCurrentUser(), context)
                         }
                     ),
                     modifier = Modifier
@@ -73,7 +57,7 @@ fun CreateChatScreen(navController: NavController, firebaseManager: FirebaseMana
                 Button(
                     onClick = {
                         // Handle button click
-                        createChatAndNavigate(navController, otherUserId, firebaseManager, loginViewModel.getCurrentUser(),context, chatViewModel)
+                        createChatAndNavigate(navController, otherUserId, loginViewModel.getCurrentUser(),context)
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -87,8 +71,9 @@ fun CreateChatScreen(navController: NavController, firebaseManager: FirebaseMana
 
 
 // Function to handle chat creation and navigation
-private fun createChatAndNavigate(navController: NavController, otherUserId: String, firebaseManager: FirebaseManager, user: User, context: Context, chatViewModel: ChatViewModel) {
+private fun createChatAndNavigate(navController: NavController, otherUserId: String, user: User, context: Context) {
     Log.d("check", "createChatAndNavigate: $otherUserId")
+    val firebaseManager = FirebaseManager()
     firebaseManager.retrieveUserData(otherUserId){
         otherUser ->
         if(otherUser.userId == ""){
@@ -97,11 +82,6 @@ private fun createChatAndNavigate(navController: NavController, otherUserId: Str
             return@retrieveUserData
         }
         firebaseManager.createChat(user, otherUser,{ chatId ->
-            val chatEntity = ChatEntity.fromChatMessage(Chat(chatId, otherUserId, "", 0L))
-
-            CoroutineScope(Dispatchers.Main). launch {
-                chatViewModel.insertChat(chatEntity)
-            }
 
 
             navController.navigate(Screen.ChatWithDetails.withArgs(chatId, otherUserId, otherUser.username))

@@ -1,17 +1,10 @@
 package com.example.messengerapp.composables
 
 import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.graphics.ImageDecoder
 import android.net.Uri
-import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.view.CameraController
-import androidx.camera.view.LifecycleCameraController
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,18 +28,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -65,35 +54,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.core.app.ActivityCompat.startActivityForResult
 import androidx.core.net.toUri
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
-import coil.compose.rememberImagePainter
 import coil.request.ImageRequest
 import com.example.messengerapp.FirebaseManager
-import com.example.messengerapp.R
-import com.example.messengerapp.viewModel.LoginViewModel
 import com.example.messengerapp.data.Chat
 import com.example.messengerapp.data.Message
-import com.example.messengerapp.data.MessageEntity
-import com.example.messengerapp.data.Screen
 import com.example.messengerapp.data.User
-import com.example.messengerapp.viewModel.ChatViewModel
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
+import com.example.messengerapp.viewModel.LoginViewModel
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageReference
-import com.google.firebase.storage.UploadTask
-import kotlinx.coroutines.launch
-import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -102,23 +76,12 @@ import java.util.UUID
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun ChatDetailScreen(navController: NavHostController,chat: Chat, firebaseManager: FirebaseManager, loginViewModel: LoginViewModel, chatViewModel: ChatViewModel) {
-    // Retrieve all messages between the current user and the other user
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val otherUserName = navBackStackEntry?.arguments?.getString("otherUserName")
+fun ChatDetailScreen(navController: NavHostController,chat: Chat, loginViewModel: LoginViewModel) {
+    val firebaseManager = FirebaseManager()
     val currentUser = loginViewModel.getCurrentUser()
     var otherUser:User by remember{ mutableStateOf(User("","","")) }
-    var messageText by remember { mutableStateOf("") }
     var isInputFocused by remember { mutableStateOf(false) }
-
-    fun convertEntitiesIntoMessages(chatViewModel: ChatViewModel):List<Message>{
-        var tempMessages = mutableListOf<Message>()
-        for(messageEntity in chatViewModel.allMessages){
-            tempMessages.add(Message(senderId = messageEntity.senderId, messageText = messageEntity.messageText, timestamp = messageEntity.timestamp))
-        }
-        return tempMessages
-    }
-    var messages by remember { mutableStateOf(convertEntitiesIntoMessages(chatViewModel)) }
+    var messages by remember { mutableStateOf(emptyList<Message>()) }
 
     LaunchedEffect(Unit) {
         firebaseManager.retrieveUserData(chat.otherUserId){
@@ -136,33 +99,33 @@ fun ChatDetailScreen(navController: NavHostController,chat: Chat, firebaseManage
                 ChatTopBar(otherUser, navController)
             },
             content = {
-
                 ChatContent(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(
-                            bottom = if (isInputFocused) (LocalDensity.current.density * 56).dp else {
-                                0.dp
-                            }, top = 56.dp
-                        ),
+                        .padding(bottom = 56.dp, top = 56.dp),
                     messages = messages,
-                    userId = currentUser.userId,
-                    otherUserId = otherUser.userId,
-                    navController = navController
+                    userId = currentUser.userId
                 )
             },
             bottomBar = {
                 ChatBottomBar(
                     onSendClicked = { toSent ->
-                        val tempMessage = Message(loginViewModel.getCurrentUser().userId, toSent, System.currentTimeMillis())
-                        insertMessage(chatViewModel, tempMessage, chat.chatId)
-                        firebaseManager.sendMessage(chat.chatId, tempMessage)
+                        firebaseManager.sendMessage(chat.chatId, Message(loginViewModel.getCurrentUser().userId, toSent, System.currentTimeMillis()))
                     },
-                    onInputFocusChange = { isInputFocused = it },
-                    navController = navController
+                    onInputFocused = { isInputFocused = it }
                 )
             }
         )
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
     }
 }
 @Composable
@@ -196,14 +159,14 @@ fun ChatTopBar(user: User, navController: NavHostController) {
     }
 }
 @Composable
-fun ChatContent(modifier: Modifier = Modifier, messages: List<Message> = emptyList(), userId: String, otherUserId: String, navController: NavHostController) {
+fun ChatContent(modifier: Modifier = Modifier, messages: List<Message> = emptyList(), userId: String) {
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(16.dp)
     ) {
 
         items(messages) { message ->
-            ChatMessage(message = message, userId = userId, otherUserId = otherUserId)
+            ChatMessage(message = message, userId = userId)
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
@@ -211,18 +174,15 @@ fun ChatContent(modifier: Modifier = Modifier, messages: List<Message> = emptyLi
 @Composable
 fun ChatBottomBar(
     onSendClicked: (String) -> Unit,
-    onInputFocusChange: (Boolean) -> Unit,
-    navController: NavHostController
+    onInputFocused: (Boolean) -> Unit
 ) {
-    var isCameraClicked by remember { mutableStateOf(false) }
-    var isPhotoClicked by remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri ->
-        Log.d("check", "ChatBottomBar: $uri")
+
         imageUri = uri
     }
     if(imageUri != null) {
-        uploadImageMessage(imageUri!!, FirebaseStorage.getInstance().getReference("imageMessages"), "tempChatId"){ url ->
+        uploadImageMessage(imageUri!!, FirebaseStorage.getInstance().getReference("imageMessages")){ url ->
             Log.d("check", "calling onCallback")
             onSendClicked(url.toString())
     }}
@@ -237,10 +197,10 @@ fun ChatBottomBar(
             contentDescription = null,
             modifier = Modifier
                 .size(32.dp)
-                .clickable { isPhotoClicked = !isPhotoClicked }
+                .clickable { }
                 .padding(4.dp)
                 .background(
-                    if (isPhotoClicked) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    Color.Transparent,
                     shape = MaterialTheme.shapes.small
                 )
         )
@@ -250,20 +210,20 @@ fun ChatBottomBar(
             contentDescription = null,
             modifier = Modifier
                 .size(32.dp)
-                .clickable { isCameraClicked = !isCameraClicked
+                .clickable {
                     launcher.launch("image/*")
 
                 }
                 .padding(4.dp)
                 .background(
-                    if (isCameraClicked) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    Color.Transparent,
                     shape = MaterialTheme.shapes.small
                 )
         )
         Spacer(modifier = Modifier.width(16.dp))
         ChatMessageInput(
             onSendClicked = onSendClicked,
-            onInputFocusChange = onInputFocusChange
+            onInputFocused = onInputFocused
         )
     }
 }
@@ -271,9 +231,9 @@ fun ChatBottomBar(
 @Composable
 fun ChatMessageInput(
     onSendClicked: (String) -> Unit,
-    onInputFocusChange: (Boolean) -> Unit
+    onInputFocused: (Boolean) -> Unit
+
 ) {
-    var isInputFocused by remember { mutableStateOf(false) }
     var messageText by remember { mutableStateOf("") }
     Row(
         modifier = Modifier
@@ -291,10 +251,7 @@ fun ChatMessageInput(
                 .padding(8.dp)
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.background)
-                .onFocusChanged {
-                    isInputFocused = it.isFocused
-                    onInputFocusChange(isInputFocused)
-                },
+                .onFocusChanged { onInputFocused(it.isFocused) },
             textStyle = LocalTextStyle.current.copy(MaterialTheme.typography.bodyMedium.color),
             placeholder = { Text("Type a message...") },
             singleLine = true,
@@ -321,14 +278,12 @@ fun ChatMessageInput(
     }
 }
 @Composable
-fun ChatMessage(message: Message, userId: String, otherUserId: String) {
+fun ChatMessage(message: Message, userId: String) {
     Log.d("check", "ChatMessage: ${message.senderId} $userId")
     val alignment = if (message.senderId == userId) Arrangement.End else Arrangement.Start
     val bubbleColor = if (message.senderId == userId) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
-    val textColor = if (message.senderId == userId) Color.Black else Color.White
+    //val textColor = if (message.senderId == userId) Color.Black else Color.White
     val timeAlignment = if (message.senderId == userId) Alignment.Start else Alignment.End
-    val configuration = LocalConfiguration.current.screenWidthDp.dp
-    //val screenWidth = configuration.screenWidthDp.dp
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -347,7 +302,7 @@ fun ChatMessage(message: Message, userId: String, otherUserId: String) {
                     .padding(8.dp)
                     .widthIn(max = LocalConfiguration.current.screenWidthDp.dp * 0.6f),
             ) {
-                if(isURL(message.messageText)){
+                if(isImageMessage(message.messageText)){
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(message.messageText)
@@ -370,28 +325,12 @@ fun ChatMessage(message: Message, userId: String, otherUserId: String) {
         }
     }
 }
-private fun insertMessage(chatViewModel: ChatViewModel, message: Message, chatId: String){
-    chatViewModel.viewModelScope.launch {
-        val entity = MessageEntity(chatId = chatId, senderId = message.senderId, messageText = message.messageText, timestamp = message.timestamp, messageId = 0)
-        chatViewModel.insertMessage(entity)
-    }
-}
 
-private fun uploadImageMessage(imageUri: Uri, storageRef: StorageReference, chatId: String, onCallback: (Uri) -> Unit) {
-    // Generate a unique filename for the image
+private fun uploadImageMessage(imageUri: Uri, storageRef: StorageReference, onCallback: (Uri) -> Unit) {
     val filename = UUID.randomUUID().toString()
     val imagesRef = storageRef.child(filename)
-    //val databaseReference: DatabaseReference = FirebaseDatabase.getInstance().getReference("imageMessages").child(chatId)
-    // Upload the image to Firebase Storage
     val uploadTask = imagesRef.putFile(imageUri)
 
-    // Monitor the upload progress
-    uploadTask.addOnProgressListener { taskSnapshot ->
-        val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toInt()
-        // Handle progress updates if needed
-    }
-
-    // Handle successful upload
     uploadTask.continueWithTask { task ->
         if (!task.isSuccessful) {
             task.exception?.let {
@@ -407,26 +346,13 @@ private fun uploadImageMessage(imageUri: Uri, storageRef: StorageReference, chat
             } else {
                 Log.d("check", "uploadTask: failed to get image url: $storageRef")
             }
-
-
         Log.d("check", "upload Successful")
-        // Handle successful upload if needed
     }
-
-    // Handle upload failure
-    uploadTask.addOnFailureListener { exception ->
+    uploadTask.addOnFailureListener { _ ->
         Log.d("check", "upload failed")
     }
 }
-fun isURL(input: String): Boolean {
-    try {
-        // Create a URL object
-        URL(input)
-
-        // If the URL is created successfully, it's a valid URL
-        return true
-    } catch (e: Exception) {
-        // If an exception is thrown, it's not a valid URL
-        return false
-    }
+fun isImageMessage(input: String): Boolean {
+    val imageMessageAddress = "https://firebasestorage.googleapis.com/v0/b/messengerapp-3b5a1.appspot.com/o/imageMessages"
+    return input.startsWith(imageMessageAddress)
 }
