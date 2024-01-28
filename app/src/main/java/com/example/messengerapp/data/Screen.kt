@@ -11,6 +11,7 @@ sealed class Screen(val route: String) {
     object CreateChatScreen : Screen("create_chat_screen")
     object LoadingScreen : Screen("loading_screen")
     object VerificationScreen: Screen("verification_screen")
+    object CameraScreen: Screen("camera_screen")
     fun withArgs(vararg args: String): String{
         return buildString{
             append(route)

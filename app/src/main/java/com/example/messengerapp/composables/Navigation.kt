@@ -267,7 +267,10 @@ fun Navigation(auth: FirebaseAuth, loginViewModel: LoginViewModel, chatViewModel
                                 )
 
                         }
-
+                        composable(Screen.CameraScreen.route){
+                            Log.d("check", "Launching Camera Screen")
+                            CameraScreen()
+                        }
                     }
 
             }
