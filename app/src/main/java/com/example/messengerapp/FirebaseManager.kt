@@ -6,26 +6,28 @@ import com.example.messengerapp.data.Chat
 import com.example.messengerapp.data.Message
 import com.example.messengerapp.data.User
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.database.*
-import java.util.Locale
-import kotlin.random.Random
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 
 class FirebaseManager {
 
     private val database = FirebaseDatabase.getInstance()
     private val usersRef = database.getReference("users")
     private val chatsRef = database.getReference("chats")
+
     fun retrieveUserData(userId: String, callback: (User) -> Unit) {
         usersRef.child(userId).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val username = snapshot.child("name").getValue(String::class.java).orEmpty()
                 val avatarRef = snapshot.child("avatarRef").getValue(String::class.java).orEmpty()
                 Log.d("check", "retrieveUserData: "+snapshot.key+" "+username+" "+userId)
-                callback(User(userId, username, avatarRef))
+                callback(User(userId, username, avatarRef, "", "", "", "", ""))
             }
 
             override fun onCancelled(error: DatabaseError) {
-                callback(User("", "", ""))
+                callback(User("", "", "", "", "", "", "", ""))
             }
         })
     }
@@ -146,6 +148,17 @@ class FirebaseManager {
     fun sendMessage(chatId: String, message: Message) {
         Log.d("check", "sendMessage: "+chatId+" "+message.senderId+" "+message.messageText+" "+message.timestamp)
         val chatRef = chatsRef.child(chatId)
+        chatRef.child("unreadCount").addListenerForSingleValueEvent(object: ValueEventListener{
+
+            override fun onDataChange(snapshot: DataSnapshot) {
+                var unreadCount = snapshot.getValue(Int::class.java) ?: 0
+                unreadCount++
+                chatRef.child("unreadCount").setValue(unreadCount)
+            }
+            override fun onCancelled(error: DatabaseError) {
+                // Handle error
+            }
+        })
         chatRef.child("messages").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.exists()) {
@@ -166,6 +179,19 @@ class FirebaseManager {
             }
         })
     }
+    fun nullifyUnreadCount(chatId: String){
+        val chatRef = chatsRef.child(chatId)
+        Log.d("check", "nullifyUnreadCount called")
+        chatRef.child("unreadCount").addListenerForSingleValueEvent(object: ValueEventListener{
+
+            override fun onDataChange(snapshot: DataSnapshot) {
+                chatRef.child("unreadCount").setValue(0)
+            }
+            override fun onCancelled(error: DatabaseError) {
+                // Handle error
+            }
+        })
+    }
     fun retrieveChats(user: User,callback: (List<Chat>) -> Unit) {
         chatsRef.addValueEventListener(object: ValueEventListener{
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -174,13 +200,15 @@ class FirebaseManager {
                     val chatId = chatSnapshot.key.orEmpty()
 
                     if (chatId.contains(user.userId)) {
-
                         val otherUserId = chatId.replace(user.userId, "").removePrefix("_").removeSuffix("_")
+                        val unreadCount = chatSnapshot.child("unreadCount").getValue(Int::class.java) ?: 0
                         val lastMessageSnapshot = chatSnapshot.child("messages").children.lastOrNull()
                         lastMessageSnapshot?.let {
                             val text = it.child("messageText").getValue(String::class.java).orEmpty()
+                            val senderId = it.child("senderId").getValue(String::class.java).orEmpty()
                             val timestamp = it.child("timestamp").getValue(Long::class.java) ?: 0
-                            val chat = Chat(chatId, otherUserId, text, timestamp)
+                            //val unreadCount = it.child("unreadCount").getValue(Int::class.java) ?: 0
+                            val chat = Chat(chatId, otherUserId, Message(senderId, text, timestamp), unreadCount)
                             chatList.add(chat)
                             callback(chatList)
                         }

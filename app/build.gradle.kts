@@ -66,6 +66,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
     implementation ("com.google.firebase:firebase-database")
+    implementation ("com.google.firebase:firebase-messaging")
     implementation ("androidx.compose.runtime:runtime-livedata")
     implementation ("io.coil-kt:coil-compose:2.5.0")
 
@@ -77,7 +78,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material3:material3:1.1.2")
     implementation("com.google.firebase:firebase-storage-ktx:20.3.0")
     implementation ("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-common:2.6.1")

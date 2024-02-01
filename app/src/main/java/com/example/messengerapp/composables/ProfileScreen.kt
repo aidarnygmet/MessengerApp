@@ -18,9 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
@@ -32,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,7 +64,7 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
 
     val currentUser = loginViewModel.getCurrentUser()
     val storageRef = storage.getReference(currentUser.userId)
-    var imageUrl by remember { mutableStateOf<Uri?>(null) }
+    val imageUrl by loginViewModel.profilePictureUri.collectAsState()
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var uploadTask by remember { mutableStateOf<UploadTask?>(null) }
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri ->
@@ -78,7 +77,9 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
                 Log.d("check", "userID ${currentUser.userId}")
                 if (child.size != 0) {
                     child[0].downloadUrl.addOnSuccessListener { uri ->
-                        imageUrl = uri
+                        if (imageUrl != uri.toString()) {
+                            loginViewModel.setProfilePictureUri(uri.toString())
+                        }
                     }.addOnFailureListener {
                         Log.d("check", "ProfileScreen: failed to get image url: $storageRef and error: $it")
                     }
@@ -93,12 +94,11 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
     Scaffold (
         topBar = {
             Row(modifier = Modifier.fillMaxWidth(),horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically){
-                Box(modifier = Modifier.padding(8.dp)){
-                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = null,
-                        modifier = Modifier. clickable { navController.popBackStack() })
-                }
+
                 Text(text = "Profile", style = MaterialTheme.typography.displayMedium)
-                Row(modifier = Modifier.fillMaxWidth().padding(4.dp),horizontalArrangement = Arrangement.End){
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),horizontalArrangement = Arrangement.End){
                     Icon(imageVector = Icons.Default.MoreVert, contentDescription = null,
                         modifier = Modifier.clickable {
                             FirebaseAuth.getInstance().signOut()
@@ -130,7 +130,6 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
                                 .clip(shape = MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.primary)
                                 .clickable {
-                                    // Launch the image picker
                                     launcher.launch("image/*")
                                 }
                                 .padding(8.dp)
@@ -138,8 +137,10 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
                         Button(
                             onClick = { imageUri?.let { uploadImage(it, storageRef, currentUser.userId){ url ->
                                 Log.d("check", "calling onCallback")
-                                loginViewModel.setCurrentUser(User(currentUser.userId, currentUser.username, url.toString()))
-                                imageUrl = url
+                                loginViewModel.setCurrentUser(User(currentUser.userId, currentUser.username, url.toString(), currentUser.bio, currentUser.linkToInstagram, currentUser.linkToFacebook, currentUser.linkToTwitter, currentUser.linkToLinkedin))
+                                if (imageUrl != url.toString()) {
+                                    loginViewModel.setProfilePictureUri(url.toString())
+                                }
                             } } },
                             enabled = imageUri != null && uploadTask == null
                         ) {
@@ -167,7 +168,7 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
                     ){
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
-                                .data(currentUser.avatarRef.toUri())
+                                .data(imageUrl.toUri())
                                 .build(),
                             contentDescription = "",
                             modifier = Modifier
@@ -175,12 +176,66 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
                                 .clip(MaterialTheme.shapes.medium),
                             contentScale = ContentScale.Crop,
                         )
-                        Column(horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                            Text(text ="Change Picture", style = MaterialTheme.typography.bodySmall)
+//                        Column(horizontalAlignment = Alignment.CenterHorizontally,
+//                            verticalArrangement = Arrangement.SpaceEvenly
+//                        ) {
+//                            Icon(imageVector = Icons.Default.Add, contentDescription = null)
+//                            Text(text ="Change Picture", style = MaterialTheme.typography.bodySmall)
+//                        }
+                        Box(){
+                            if(imageUri == null){
+                                Icon(
+                                    imageVector = Icons.Default.AddCircle,
+                                    contentDescription = "placeholder",
+                                    modifier = Modifier
+                                        .size(150.dp)
+                                        .clip(shape = MaterialTheme.shapes.medium)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                        .clickable {
+                                            // Launch the image picker
+
+                                            launcher.launch("image/*")
+                                        }
+                                        .padding(8.dp)
+                                )
+                            } else {
+                                if (uploadTask == null) {
+                                    Icon(imageVector = Icons.Default.Check, contentDescription = null,
+                                        modifier = Modifier
+                                            .size(150.dp)
+                                            .clip(shape = MaterialTheme.shapes.medium)
+                                            .background(MaterialTheme.colorScheme.primary)
+                                            .clickable {
+                                                imageUri?.let { uploadImage(it, storageRef, currentUser.userId)
+                                                { url ->
+                                                    Log.d("check", "calling onCallback")
+                                                    loginViewModel.setCurrentUser(User(currentUser.userId, currentUser.username, url.toString(), currentUser.bio, currentUser.linkToInstagram, currentUser.linkToFacebook, currentUser.linkToTwitter, currentUser.linkToLinkedin))
+                                                    if (imageUrl != url.toString()) {
+                                                        loginViewModel.setProfilePictureUri(url.toString())
+                                                    }
+                                                }
+                                                }
+                                                imageUri=null
+                                            }
+                                            .padding(8.dp))
+                                } else {
+                                    CircularProgressIndicator()
+                                }
+
+                            }
                         }
+//                        Button(
+//                            onClick = {
+//                                launcher.launch("image/*")
+//                                      },
+//                            //enabled = imageUri != null && uploadTask == null
+//                        ) {
+//                            if (uploadTask == null) {
+//                                Icon(imageVector = Icons.Default.Check, contentDescription = null)
+//                            } else {
+//                                CircularProgressIndicator()
+//                            }
+//                        }
                     }
                 }
                 Column(
@@ -282,6 +337,7 @@ private fun uploadImage(imageUri: Uri, storageRef: StorageReference, userId: Str
 
     // Handle successful upload
     uploadTask.addOnSuccessListener {
+
         storageRef.listAll().addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val child = task.result.items // Access the first element or null if empty

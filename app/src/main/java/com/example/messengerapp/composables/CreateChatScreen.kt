@@ -1,9 +1,7 @@
 package com.example.messengerapp.composables
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -45,7 +43,7 @@ fun CreateChatScreen(navController: NavController, loginViewModel: LoginViewMode
                     ),
                     keyboardActions = KeyboardActions(
                         onDone = {
-                            createChatAndNavigate(navController, otherUserId,loginViewModel.getCurrentUser(), context)
+                            createChatAndNavigate(navController, otherUserId,loginViewModel.getCurrentUser())
                         }
                     ),
                     modifier = Modifier
@@ -57,7 +55,7 @@ fun CreateChatScreen(navController: NavController, loginViewModel: LoginViewMode
                 Button(
                     onClick = {
                         // Handle button click
-                        createChatAndNavigate(navController, otherUserId, loginViewModel.getCurrentUser(),context)
+                        createChatAndNavigate(navController, otherUserId, loginViewModel.getCurrentUser())
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -71,13 +69,12 @@ fun CreateChatScreen(navController: NavController, loginViewModel: LoginViewMode
 
 
 // Function to handle chat creation and navigation
-private fun createChatAndNavigate(navController: NavController, otherUserId: String, user: User, context: Context) {
+private fun createChatAndNavigate(navController: NavController, otherUserId: String, user: User) {
     Log.d("check", "createChatAndNavigate: $otherUserId")
     val firebaseManager = FirebaseManager()
     firebaseManager.retrieveUserData(otherUserId){
         otherUser ->
         if(otherUser.userId == ""){
-            Toast.makeText(context, "User not found", Toast.LENGTH_SHORT).show()
             Log.d("check", "createChatAndNavigate: User not found")
             return@retrieveUserData
         }
@@ -89,5 +86,4 @@ private fun createChatAndNavigate(navController: NavController, otherUserId: Str
                 e -> Log.d("check", "createChatAndNavigate: $e")
         })
     }
-
 }

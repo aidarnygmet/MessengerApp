@@ -19,8 +19,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,14 +53,16 @@ import java.util.Locale
 
 @Composable
 fun ChatsScreen(navController: NavHostController, firebaseManager: FirebaseManager, loginViewModel: LoginViewModel) {
-    var chats by remember { mutableStateOf(emptyList<Chat>()) }
+    //var chats by remember { mutableStateOf(loginViewModel.chats) }
+    val chats by loginViewModel.chats.collectAsState()
     LaunchedEffect(Unit) {
-        loginViewModel.currentUser.value?.let {
-            firebaseManager.retrieveChats(it) { retrievedChats ->
-                chats = retrievedChats.sortedByDescending { it1 -> it1.timestamp }
-                loginViewModel.setChats(chats)
-            }
-        }
+//        loginViewModel.currentUser.value?.let {
+//            firebaseManager.retrieveChats(it) { retrievedChats ->
+//                chats = retrievedChats.sortedByDescending { it1 -> it1.timestamp }
+//                loginViewModel.setChats()
+//            }
+//        }
+        loginViewModel.setChats()
     }
     if(chats.isNotEmpty()){
         Column {
@@ -70,6 +74,7 @@ fun ChatsScreen(navController: NavHostController, firebaseManager: FirebaseManag
             ) {
                 items(chats) { chat ->
                     ChatItem(viewModel = loginViewModel,navController, chat, firebaseManager)
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
@@ -81,14 +86,14 @@ fun ChatsScreen(navController: NavHostController, firebaseManager: FirebaseManag
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "No chats yet", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Text(text = "No chats yet\nStart chatting by pressing Plus button", fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         }
     }
 }
 
 @Composable
 fun ChatItem(viewModel: LoginViewModel, navController: NavHostController, chat: Chat, firebaseManager: FirebaseManager) {
-    var otherUser by remember { mutableStateOf(User("","","")) }
+    var otherUser by remember { mutableStateOf(User("","","", "", "", "","", "")) }
     val currentUser = viewModel.getCurrentUser()
 
     LaunchedEffect(Unit){
@@ -114,17 +119,15 @@ fun ChatItem(viewModel: LoginViewModel, navController: NavHostController, chat: 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .border(2.dp, Color.Gray.copy(alpha = 0.1f), MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
                 .clickable {
 
-                        navController.navigate(
-                            Screen.ChatWithDetails.withArgs(
-                                chat.chatId
-                            )
+                    navController.navigate(
+                        Screen.ChatWithDetails.withArgs(
+                            chat.chatId
                         )
+                    )
 
                 }
                 .padding(8.dp),
@@ -137,7 +140,7 @@ fun ChatItem(viewModel: LoginViewModel, navController: NavHostController, chat: 
                     contentDescription = null,
                     modifier = Modifier
                         .size(64.dp)
-                        .clip(MaterialTheme.shapes.medium)
+                        .clip(CircleShape)
                         .border(2.dp, Color.Gray.copy(alpha = 0.1f), MaterialTheme.shapes.medium)
                 )
             } else {
@@ -148,8 +151,7 @@ fun ChatItem(viewModel: LoginViewModel, navController: NavHostController, chat: 
                     contentDescription = "",
                     modifier = Modifier
                         .size(64.dp)
-                        .clip(MaterialTheme.shapes.medium)
-                        .border(2.dp, Color.Gray.copy(alpha = 0.1f), MaterialTheme.shapes.medium),
+                        .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             }
@@ -163,26 +165,34 @@ fun ChatItem(viewModel: LoginViewModel, navController: NavHostController, chat: 
                     verticalArrangement = Arrangement.SpaceEvenly
                 ) {
                     Text(text = otherUser.username, fontWeight = FontWeight.Bold)
-                    Text(text = chat.lastMessage!!, maxLines = 1, color = Color.Gray)
+                    if(isImageMessage(chat.lastMessage!!.messageText)){
+                        Text(text = "Image", maxLines = 1, color = Color.Gray)
+                    } else {
+                        Text(text = chat.lastMessage.messageText, maxLines = 1, color = Color.Gray)
+                    }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(
                     horizontalAlignment = Alignment.End
                 ) {
                     val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-                    Text(text = sdf.format(Date(chat.timestamp!!)), fontWeight = FontWeight.Bold)
+                    Text(text = sdf.format(Date(chat.lastMessage!!.timestamp)), fontWeight = FontWeight.Bold)
                     Spacer(modifier =Modifier.height(4.dp))
-                    Text(
-                        text = "1", fontWeight = FontWeight.Bold, modifier = Modifier
-                            .size(24.dp)
-                            .background(MaterialTheme.colorScheme.errorContainer, CircleShape)
-                            .clip(CircleShape),
-                        textAlign = TextAlign.Center
-                    )
+                    if(chat.lastMessage.senderId != currentUser.userId && chat.unreadCount != 0){
+                        Text(
+                            text = chat.unreadCount.toString(), fontWeight = FontWeight.Bold, modifier = Modifier
+                                .size(24.dp)
+                                .background(MaterialTheme.colorScheme.secondary, CircleShape)
+                                .clip(CircleShape),
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSecondary
+                        )
+                    }
                 }
             }
         }
     }
 }
+
 
 

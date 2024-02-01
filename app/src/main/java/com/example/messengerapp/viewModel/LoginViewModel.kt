@@ -3,28 +3,48 @@ package com.example.messengerapp.viewModel
 import android.util.Log
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.messengerapp.FirebaseManager
 import com.example.messengerapp.data.Chat
 import com.example.messengerapp.data.User
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 class LoginViewModel: ViewModel() {
     private val _currentUser = mutableStateOf<User?>(null)
     val currentUser: State<User?> = _currentUser
-    private val _chats = MutableLiveData<List<Chat>>()
-    val chats: LiveData<List<Chat>> get() = _chats
+    private val _chats = MutableStateFlow<List<Chat>>(emptyList())
+    val chats: StateFlow<List<Chat>> get() = _chats
+    private val _profilePictureUri = MutableStateFlow<String>("")
+    val profilePictureUri: StateFlow<String> get() = _profilePictureUri
+    fun setProfilePictureUri(uri: String){
+        _profilePictureUri.value = uri
+    }
+    fun getProfilePictureUri(): String{
+        return _profilePictureUri.value
+    }
     fun setCurrentUser(user: User?) {
         _currentUser.value = user
     }
     fun getCurrentUser(): User{
         return _currentUser.value!!
     }
-    fun setChats(newChats: List<Chat>) {
-        _chats.value = newChats
+    fun setChats() {
+        viewModelScope.launch {
+            val firebaseManager = FirebaseManager()
+            firebaseManager.retrieveChats(getCurrentUser()){retrievedChats->
+                _chats.value = retrievedChats.sortedByDescending { it1 -> it1.lastMessage!!.timestamp}
+            }
+        }
+    }
+    fun getChats(): List<Chat>{
+        if(_chats.value == null){
+            return emptyList()
+        }
+        return _chats.value!!
     }
     fun signUp(firebaseManager: FirebaseManager,auth: FirebaseAuth, username: String, email: String, password: String, onComplete: (LoginResult) -> Unit) {
         val emailRegex = "^[A-Za-z](.*)([@]{1})(.{1,})(\\.)(.{1,})"
@@ -81,7 +101,7 @@ class LoginViewModel: ViewModel() {
                                         var newUser : User
                                         firebaseManager.createUser(
                                             user,
-                                            User(username.lowercase().replace(Regex("[^a-zA-Z0-9]"), ""), username, ""),
+                                            User(username.lowercase().replace(Regex("[^a-zA-Z0-9]"), ""), username, "", "", "", "", "", ""),
                                             { savedUser ->
                                                 setCurrentUser(savedUser)
                                                 newUser = savedUser

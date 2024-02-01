@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -28,31 +27,33 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -79,16 +80,22 @@ import java.util.UUID
 fun ChatDetailScreen(navController: NavHostController,chat: Chat, loginViewModel: LoginViewModel) {
     val firebaseManager = FirebaseManager()
     val currentUser = loginViewModel.getCurrentUser()
-    var otherUser:User by remember{ mutableStateOf(User("","","")) }
+    var otherUser by remember{ mutableStateOf(User("","","","","","","","")) }
     var isInputFocused by remember { mutableStateOf(false) }
     var messages by remember { mutableStateOf(emptyList<Message>()) }
-
+    val chats by loginViewModel.chats.collectAsState()
+    if(chats.isNotEmpty()){
+        val index = chats.indexOfFirst { it.chatId == chat.chatId }
+        if(chats[index].lastMessage?.senderId != currentUser.userId){
+            firebaseManager.nullifyUnreadCount(chat.chatId)
+        }
+    }
     LaunchedEffect(Unit) {
         firebaseManager.retrieveUserData(chat.otherUserId){
             otherUser = it
         }
         firebaseManager.retrieveMessages(chat.chatId) { retrievedMessages ->
-            messages = retrievedMessages
+            messages = retrievedMessages.reversed()
         }
     }
     Log.d("check", "ChatDetailScreen: ${chat.chatId}")
@@ -134,11 +141,11 @@ fun ChatTopBar(user: User, navController: NavHostController) {
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
-            .background(MaterialTheme.colorScheme.primary)
             .padding(start = 16.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.clickable { navController.popBackStack() })
+        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.clickable { navController.popBackStack() },
+            tint = MaterialTheme.colorScheme.onSurface)
         Spacer(modifier = Modifier.width(16.dp))
 
         AsyncImage(
@@ -147,28 +154,32 @@ fun ChatTopBar(user: User, navController: NavHostController) {
                 .build(),
             contentDescription = "",
             modifier = Modifier
-                .padding(4.dp)
-                .size(32.dp)
+                .size(40.dp)
                 .clip(CircleShape),
             contentScale = ContentScale.Crop,
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Text(text = user.username, style = MaterialTheme.typography.bodyMedium)
+        Text(text = user.username, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         Spacer(modifier = Modifier.weight(1f))
-        Icon(imageVector = Icons.Default.MoreVert, contentDescription = null)
+        Icon(imageVector = Icons.Default.MoreVert, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
     }
 }
 @Composable
 fun ChatContent(modifier: Modifier = Modifier, messages: List<Message> = emptyList(), userId: String) {
+    val coroutineScope = rememberCoroutineScope()
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = PaddingValues(16.dp),
+        reverseLayout = true,
     ) {
 
         items(messages) { message ->
             ChatMessage(message = message, userId = userId)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
         }
+
+
+
     }
 }
 @Composable
@@ -185,42 +196,31 @@ fun ChatBottomBar(
         uploadImageMessage(imageUri!!, FirebaseStorage.getInstance().getReference("imageMessages")){ url ->
             Log.d("check", "calling onCallback")
             onSendClicked(url.toString())
-    }}
+        }
+        imageUri = null
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(68.dp)
             .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp)
+            .padding(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+        , horizontalArrangement = Arrangement.Start
     ) {
         Icon(
             imageVector = Icons.Default.AddCircle,
             contentDescription = null,
             modifier = Modifier
-                .size(32.dp)
-                .clickable { }
-                .padding(4.dp)
-                .background(
-                    Color.Transparent,
-                    shape = MaterialTheme.shapes.small
-                )
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Icon(
-            imageVector = Icons.Default.Face,
-            contentDescription = null,
-            modifier = Modifier
-                .size(32.dp)
+                .size(40.dp)
                 .clickable {
                     launcher.launch("image/*")
-
                 }
-                .padding(4.dp)
-                .background(
-                    Color.Transparent,
-                    shape = MaterialTheme.shapes.small
-                )
+                .padding(4.dp),
+            tint = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.width(16.dp))
+
+        Spacer(modifier = Modifier.width(8.dp))
         ChatMessageInput(
             onSendClicked = onSendClicked,
             onInputFocused = onInputFocused
@@ -237,24 +237,20 @@ fun ChatMessageInput(
     var messageText by remember { mutableStateOf("") }
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         TextField(
             value = messageText,
             onValueChange = { messageText = it },
             modifier = Modifier
-                .weight(1f)
-                .padding(8.dp)
+                .fillMaxWidth(0.85f)
                 .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.background)
                 .onFocusChanged { onInputFocused(it.isFocused) },
-            textStyle = LocalTextStyle.current.copy(MaterialTheme.typography.bodyMedium.color),
-            placeholder = { Text("Type a message...") },
-            singleLine = true,
+            placeholder = { Text("Type a message...", modifier = Modifier.fillMaxSize(), style = MaterialTheme.typography.bodyLarge) },
             keyboardOptions = KeyboardOptions.Default.copy(
                 imeAction = ImeAction.Send,
                 keyboardType = KeyboardType.Text
@@ -262,7 +258,14 @@ fun ChatMessageInput(
             keyboardActions = KeyboardActions(
                 onSend = {
                     onSendClicked(messageText)
+                    messageText = ""
                 }
+            ),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
             )
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -270,10 +273,11 @@ fun ChatMessageInput(
             imageVector = Icons.Default.Send,
             contentDescription = null,
             modifier = Modifier
-                .size(32.dp)
-                .clickable { onSendClicked(messageText) }
-                .padding(4.dp)
-                .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
+                .size(40.dp)
+                .clickable { onSendClicked(messageText)
+                messageText = ""}
+                .padding(4.dp),
+                tint = MaterialTheme.colorScheme.primary
         )
     }
 }
@@ -281,8 +285,8 @@ fun ChatMessageInput(
 fun ChatMessage(message: Message, userId: String) {
     Log.d("check", "ChatMessage: ${message.senderId} $userId")
     val alignment = if (message.senderId == userId) Arrangement.End else Arrangement.Start
-    val bubbleColor = if (message.senderId == userId) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
-    //val textColor = if (message.senderId == userId) Color.Black else Color.White
+    val bubbleColor = if (message.senderId == userId) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+    val textColor = if (message.senderId == userId) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
     val timeAlignment = if (message.senderId == userId) Alignment.Start else Alignment.End
     Row(
         modifier = Modifier
@@ -292,15 +296,18 @@ fun ChatMessage(message: Message, userId: String) {
     ) {
         Card(
             modifier = Modifier
-
                 .clip(MaterialTheme.shapes.medium)
                 .background(bubbleColor)
                 .padding(8.dp)
+
         ) {
             Column(
                 modifier = Modifier
-                    .padding(8.dp)
-                    .widthIn(max = LocalConfiguration.current.screenWidthDp.dp * 0.6f),
+                    .background(bubbleColor)
+                    .padding(4.dp)
+                    .background(bubbleColor)
+                    .clip(RectangleShape)
+                    //.widthIn(max = LocalConfiguration.current.screenWidthDp.dp * 0.6f)
             ) {
                 if(isImageMessage(message.messageText)){
                     AsyncImage(
@@ -315,11 +322,12 @@ fun ChatMessage(message: Message, userId: String) {
                     )
                 }
                 else{
-                Text(text = message.messageText)}
-                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = message.messageText, color = textColor, style = MaterialTheme.typography.bodyLarge)}
                 Text(
                     text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
-                    modifier = Modifier.align(timeAlignment)
+                    modifier = Modifier.align(timeAlignment),
+                    color = textColor.copy(alpha = 0.6f),
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
