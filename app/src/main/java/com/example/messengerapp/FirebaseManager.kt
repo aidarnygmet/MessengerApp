@@ -22,14 +22,34 @@ class FirebaseManager {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val username = snapshot.child("name").getValue(String::class.java).orEmpty()
                 val avatarRef = snapshot.child("avatarRef").getValue(String::class.java).orEmpty()
+                val bio = snapshot.child("bio").getValue(String::class.java).orEmpty()
+                val linkToInstagram = snapshot.child("linkToInstagram").getValue(String::class.java).orEmpty()
+                val linkToFacebook = snapshot.child("linkToFacebook").getValue(String::class.java).orEmpty()
+                val linkToTwitter = snapshot.child("linkToTwitter").getValue(String::class.java).orEmpty()
+                val linkToLinkedIn = snapshot.child("linkedIn").getValue(String::class.java).orEmpty()
                 Log.d("check", "retrieveUserData: "+snapshot.key+" "+username+" "+userId)
-                callback(User(userId, username, avatarRef, "", "", "", "", ""))
+                callback(User(userId, username, avatarRef, bio, linkToInstagram, linkToFacebook, linkToTwitter, linkToLinkedIn))
             }
 
             override fun onCancelled(error: DatabaseError) {
                 callback(User("", "", "", "", "", "", "", ""))
             }
         })
+    }
+    fun updateUserBio(userId: String, bio: String){
+        usersRef.child(userId).child("bio").setValue(bio)
+    }
+    fun updateUserInstagramLink(userId: String, link: String){
+        usersRef.child(userId).child("linkToInstagram").setValue(link)
+    }
+    fun updateUserFacebookLink(userId: String, link: String){
+        usersRef.child(userId).child("linkToFacebook").setValue(link)
+    }
+    fun updateUserTwitterLink(userId: String, link: String){
+        usersRef.child(userId).child("linkToTwitter").setValue(link)
+    }
+    fun updateUserLinkedinLink(userId: String, link: String){
+        usersRef.child(userId).child("linkedIn").setValue(link)
     }
     fun createUser(firebaseId: FirebaseUser, user: User, onSuccess: (User) -> Unit, onError: (Exception) -> Unit) {
 
@@ -41,10 +61,10 @@ class FirebaseManager {
             "name" to user.username,
             "avatarRef" to user.avatarRef
         )
-        val firebaseIdToProfileId = mapOf(
-            "loginId" to firebaseId.uid,
-            "profileId" to user.userId
-        )
+//        val firebaseIdToProfileId = mapOf(
+//            "loginId" to firebaseId.uid,
+//            "profileId" to user.userId
+//        )
         usersRef.child(user.userId).addListenerForSingleValueEvent(object : ValueEventListener{
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.exists()) {
@@ -251,4 +271,3 @@ class FirebaseManager {
         return "${sortedUserIds[0]}_${sortedUserIds[1]}"
     }
 }
-data class LastMessage(val text: String, val timestamp: Long)

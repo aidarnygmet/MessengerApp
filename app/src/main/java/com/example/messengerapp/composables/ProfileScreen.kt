@@ -1,6 +1,7 @@
 package com.example.messengerapp.composables
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -45,6 +46,7 @@ import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.messengerapp.FirebaseManager
 import com.example.messengerapp.data.Screen
 import com.example.messengerapp.data.User
 import com.example.messengerapp.viewModel.LoginViewModel
@@ -66,10 +68,21 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
     val storageRef = storage.getReference(currentUser.userId)
     val imageUrl by loginViewModel.profilePictureUri.collectAsState()
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var uploadTask by remember { mutableStateOf<UploadTask?>(null) }
+    val uploadTask by remember { mutableStateOf<UploadTask?>(null) }
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri ->
         imageUri = uri
     }
+    val context = LocalContext.current
+    var instagramLink by remember {mutableStateOf(loginViewModel.currentUser.value?.linkToInstagram)}
+    var showInstagramDialog by remember { mutableStateOf(false) }
+    var facebookLink by remember {mutableStateOf(loginViewModel.currentUser.value?.linkToFacebook)}
+    var showFacebookDialog by remember { mutableStateOf(false) }
+    var twitterLink by remember {mutableStateOf(loginViewModel.currentUser.value?.linkToTwitter)}
+    var showTwitterDialog by remember { mutableStateOf(false) }
+    var linkedInLink by remember {mutableStateOf(loginViewModel.currentUser.value?.linkToLinkedin)}
+    var showLinkedInDialog by remember { mutableStateOf(false) }
+    var bio by remember {mutableStateOf(loginViewModel.currentUser.value?.bio)}
+    var showBioDialog by remember { mutableStateOf(false) }
     LaunchedEffect(storageRef) {
         storageRef.listAll().addOnCompleteListener { task ->
             if (task.isSuccessful) {
@@ -108,7 +121,7 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
             }
         }, content = {
             Column {
-                if(imageUrl == null){
+                if(imageUrl == ""){
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -206,16 +219,28 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
                                             .clip(shape = MaterialTheme.shapes.medium)
                                             .background(MaterialTheme.colorScheme.primary)
                                             .clickable {
-                                                imageUri?.let { uploadImage(it, storageRef, currentUser.userId)
-                                                { url ->
-                                                    Log.d("check", "calling onCallback")
-                                                    loginViewModel.setCurrentUser(User(currentUser.userId, currentUser.username, url.toString(), currentUser.bio, currentUser.linkToInstagram, currentUser.linkToFacebook, currentUser.linkToTwitter, currentUser.linkToLinkedin))
-                                                    if (imageUrl != url.toString()) {
-                                                        loginViewModel.setProfilePictureUri(url.toString())
+                                                imageUri?.let {
+                                                    uploadImage(it, storageRef, currentUser.userId)
+                                                    { url ->
+                                                        Log.d("check", "calling onCallback")
+                                                        loginViewModel.setCurrentUser(
+                                                            User(
+                                                                currentUser.userId,
+                                                                currentUser.username,
+                                                                url.toString(),
+                                                                currentUser.bio,
+                                                                currentUser.linkToInstagram,
+                                                                currentUser.linkToFacebook,
+                                                                currentUser.linkToTwitter,
+                                                                currentUser.linkToLinkedin
+                                                            )
+                                                        )
+                                                        if (imageUrl != url.toString()) {
+                                                            loginViewModel.setProfilePictureUri(url.toString())
+                                                        }
                                                     }
                                                 }
-                                                }
-                                                imageUri=null
+                                                imageUri = null
                                             }
                                             .padding(8.dp))
                                 } else {
@@ -265,7 +290,7 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
                                 .padding(4.dp)
                         )
                         Spacer(modifier =Modifier.height(8.dp))
-                        Text(text = "Bio: placeholder bio", style = MaterialTheme.typography.bodyLarge,
+                        Text(text = "Bio: $bio", style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(32.dp)
@@ -273,6 +298,25 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
                                 .background(MaterialTheme.colorScheme.primaryContainer)
                                 .padding(4.dp)
                         )
+                        Button(onClick = { showBioDialog = true },
+                            modifier = Modifier
+                                .height(32.dp)
+                                .clip(MaterialTheme.shapes.medium)
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
+                                .padding(4.dp)) {
+                            if (showBioDialog){
+                                SocialLinkDialog(
+                                    social = "bio",
+                                    onDismiss = { showBioDialog = false },
+                                    onConfirmation = {showBioDialog = false
+                                        updateSocial(0, currentUser.userId, it)
+                                        bio = it
+
+                                        Log.d("check", "bio: $it")
+                                    }
+                                )
+                            }
+                        }
                     }
 
                 }
@@ -285,32 +329,141 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
                     Column ( modifier = Modifier
                         .padding(4.dp)
                     ) {
-                        Text(text = "Instagram: ", style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(32.dp)
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(4.dp)
-                        )
-                        Spacer(modifier =Modifier.height(8.dp))
-                        Text(text = "Facebook: ", style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(32.dp)
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(4.dp)
-                        )
-                        Spacer(modifier =Modifier.height(8.dp))
-                        Text(text = "Twitter: ", style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(32.dp)
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(4.dp)
-                        )
+                        Row {
+                            Text(text = "Instagram: $instagramLink", style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier
+                                    .fillMaxWidth(.7f)
+                                    .height(32.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .clickable {
+                                        val actualLink = "https://www.instagram.com/$instagramLink"
+                                        val intent =
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(actualLink))
+                                        context.startActivity(intent)
+                                    }
+                            )
+                            Button(onClick = { showInstagramDialog = true },
+                                modifier = Modifier
+                                    .height(32.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .padding(4.dp)) {
+                                if (showInstagramDialog){
+                                    SocialLinkDialog(
+                                        social = "Instagram",
+                                        onDismiss = { showInstagramDialog = false },
+                                        onConfirmation = {showInstagramDialog = false
+                                            updateSocial(1, currentUser.userId, it)
+                                            instagramLink = it
+
+                                        Log.d("check", "instagram link: $it")
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        Row {
+                            Text(text = "Facebook: $facebookLink", style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier
+                                    .fillMaxWidth(.7f)
+                                    .height(32.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .clickable {
+                                        val actualLink = "https://www.facebook.com/$facebookLink"
+                                        val intent =
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(actualLink))
+                                        context.startActivity(intent)
+                                    }
+                            )
+                            Button(onClick = { showFacebookDialog = true },
+                                modifier = Modifier
+                                    .height(32.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .padding(4.dp)) {
+                                if (showFacebookDialog){
+                                    SocialLinkDialog(
+                                        social = "Facebook",
+                                        onDismiss = { showFacebookDialog = false },
+                                        onConfirmation = {showFacebookDialog = false
+                                            updateSocial(2, currentUser.userId, it)
+                                            facebookLink = it
+                                            Log.d("check", "facebook link: $it")
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        Row {
+                            Text(text = "Twitter: $twitterLink", style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier
+                                    .fillMaxWidth(.7f)
+                                    .height(32.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .clickable {
+                                        val actualLink = "https://www.twitter.com/$twitterLink"
+                                        val intent =
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(actualLink))
+                                        context.startActivity(intent)
+                                    }
+                            )
+                            Button(onClick = { showTwitterDialog = true },
+                                modifier = Modifier
+                                    .height(32.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .padding(4.dp)) {
+                                if (showTwitterDialog){
+                                    SocialLinkDialog(
+                                        social = "Facebook",
+                                        onDismiss = { showTwitterDialog = false },
+                                        onConfirmation = {showTwitterDialog = false
+                                            updateSocial(3, currentUser.userId, it)
+                                            twitterLink = it
+
+                                            Log.d("check", "twitter link: $it")
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        Row {
+                            Text(text = "LinkedIn: $linkedInLink", style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier
+                                    .fillMaxWidth(.7f)
+                                    .height(36.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .clickable {
+                                        val actualLink = "https://www.linkedin.com/in/$linkedInLink"
+                                        val intent =
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(actualLink))
+                                        context.startActivity(intent)
+                                    }
+                            )
+                            Button(onClick = { showLinkedInDialog = true },
+                                modifier = Modifier
+                                    .height(32.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                    .padding(4.dp)) {
+                                if (showLinkedInDialog){
+                                    SocialLinkDialog(
+                                        social = "Facebook",
+                                        onDismiss = { showLinkedInDialog = false },
+                                        onConfirmation = {showLinkedInDialog = false
+                                            updateSocial(4, currentUser.userId, it)
+                                            linkedInLink = it
+                                            Log.d("check", "linkedIn link: $it")
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
                     }
                 }
 
@@ -320,7 +473,28 @@ fun ProfileScreen(navController: NavHostController, loginViewModel: LoginViewMod
 
 
 }
+private fun updateSocial(social: Int, userId: String, link: String){
+    val firebaseManager = FirebaseManager()
+    when (social) {
+        0-> {
+            firebaseManager.updateUserBio(userId, link)
+        }
+        1 -> {
+            firebaseManager.updateUserInstagramLink(userId, link)
+        }
+        2 -> {
+            firebaseManager.updateUserFacebookLink(userId, link)
+        }
+        3 -> {
+            firebaseManager.updateUserTwitterLink(userId, link)
+        }
+        4 -> {
+            firebaseManager.updateUserLinkedinLink(userId, link)
 
+        }
+    }
+
+}
 private fun uploadImage(imageUri: Uri, storageRef: StorageReference, userId: String, onCallback: (Uri) -> Unit) {
     // Generate a unique filename for the image
     val filename = UUID.randomUUID().toString()
@@ -331,7 +505,7 @@ private fun uploadImage(imageUri: Uri, storageRef: StorageReference, userId: Str
 
     // Monitor the upload progress
     uploadTask.addOnProgressListener { taskSnapshot ->
-        val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toInt()
+        //val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toInt()
         // Handle progress updates if needed
     }
 
